@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 import requests
 
 load_dotenv()
+
+
 def get_tokens():
     login = os.getenv('LOGIN')
     password = os.getenv('PASSWORD')
@@ -15,3 +17,6 @@ def get_tokens():
               }
     response = requests.post('https://api.superjob.ru/2.0/oauth2/password/', params=params)
     print(response.json())
+
+if __name__ == '__main__':
+    get_tokens()

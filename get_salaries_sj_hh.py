@@ -122,8 +122,8 @@ def get_vacancies(language):
 
 def main():
     stats_hh = {}
-    # for language in PROGRAM_LANGUAGES:
-    #     stats_hh[language] = get_vacancies(language)
+    for language in PROGRAM_LANGUAGES:
+        stats_hh[language] = get_vacancies(language)
     with open('charts.json', 'r') as file:
         stats_hh = json.load(file)
     table_headers = [['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']]
