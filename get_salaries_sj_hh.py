@@ -1,12 +1,13 @@
 import json
-from datetime import datetime, timedelta
 import os
-from dotenv import load_dotenv
+from datetime import datetime, timedelta
+
 import requests
+# from requests.exceptions import HTTPError
+from dotenv import load_dotenv
 from terminaltables import AsciiTable
 
 PROGRAM_LANGUAGES = ['JavaScript', 'Java', 'Python', 'Ruby', 'PHP', 'C++', 'CSS', 'C#', 'GO']
-
 
 
 def predict_salary(salary_from, salary_to):
@@ -44,15 +45,17 @@ def predict_rub_salary_sj(vacancy):
 def get_sj_vacancies(code, token):
     vacancies_per_page = 100
     page = 0
+    moscow_id = 4
+    it_catalogue_id = 33
     more_results = True
     vacancies = []
     timestamp_1_month_ago = (datetime.now() - timedelta(days=31)).timestamp()
     params = {
         'keyword': 'программист',
         'count': vacancies_per_page,
-        'catalogues': 33,
+        'catalogues': it_catalogue_id,
         'date_published_from': timestamp_1_month_ago,
-        'town': 4
+        'town': moscow_id
     }
     headers = {'X-Api-App-Id': code,
                'Authorization':  f'Bearer {token}'
@@ -60,12 +63,14 @@ def get_sj_vacancies(code, token):
     while more_results:
         params['page'] = page
         response = requests.get('https://api.superjob.ru/2.0/vacancies/', params=params, headers=headers)
-        vacancies += response.json().get('objects', [])
-        more_results = response.json().get('more')
+        response.raise_for_status()
+        response_json = response.json()
+        vacancies += response_json.get('objects', [])
+        more_results = response_json.get('more')
     return vacancies
 
 
-def get_salaries_sj(language, vacancies):
+def get_sj_salaries(language, vacancies):
     sorted_vacancies = [vacancy for vacancy in vacancies if language.lower() in vacancy.get('candidat', '')]
     vacancies_processed = 0
     all_vacancies = len(sorted_vacancies)
@@ -83,25 +88,29 @@ def get_salaries_sj(language, vacancies):
     }
 
 
-def get_vacancies(language):
-    city_id = 1
+def get_hh_salaries(language):
+    moscow_id = 1
+    vacancies_per_page = 100
+    days = 31
     params = {
-        'area': city_id,        
+        'area': moscow_id,        
         'page': 0,
-        'per_page': 100,
+        'per_page': vacancies_per_page,
         'text': language,
         'vacancy_search_fields': {'id': 'name'},
-        'period': 31
+        'period': days
     }
     response = requests.get('https://api.hh.ru/vacancies', params=params)
+    response.raise_for_status()
     vacancies_from_page = response.json()
  
     num_pages = vacancies_from_page.get('pages')
     vacancies_from_page = vacancies_from_page.get('items')
     all_vacancies = vacancies_from_page
-    for i in range(1, num_pages):
-        params['page'] = i
+    for page in range(1, num_pages):
+        params['page'] = page
         response = requests.get('https://api.hh.ru/vacancies', params=params)
+        response.raise_for_status()
         vacancies_from_page = response.json().get('items')
         all_vacancies += vacancies_from_page
     vacancies_processed = 0
@@ -122,28 +131,38 @@ def get_vacancies(language):
 
 def main():
     stats_hh = {}
-    for language in PROGRAM_LANGUAGES:
-        stats_hh[language] = get_vacancies(language)
-    with open('charts.json', 'r') as file:
-        stats_hh = json.load(file)
-    table_headers = [['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']]
-    table_data_hh = table_headers.copy()
-    table_data_hh += [[language, *language_stats.values()] for language, language_stats in stats_hh.items()]
-    table_instance_hh = AsciiTable(table_data_hh, 'HeadHunter Moscow')
-
-    load_dotenv()
-    token_sj = os.getenv('TOKEN')
-    secret_code = os.getenv('SECRET_CODE')
-    vacancies_sj = get_sj_vacancies(secret_code, token_sj)
-    stats_sj = {}
-    for language in PROGRAM_LANGUAGES:
-        stats_sj[language] = get_salaries_sj(language, vacancies_sj)
-    table_data_sj = table_headers.copy()
-    table_data_sj += [[language, *language_stats.values()] for language, language_stats in stats_sj.items()]
-    table_instance_sj = AsciiTable(table_data_sj, 'SuperJob Moscow')
-
-    print('\n', table_instance_hh.table, '\n\n', table_instance_sj.table)
+    http_error = False
+    try:
+        for language in PROGRAM_LANGUAGES:
+            stats_hh[language] = get_hh_salaries(language)
+    except requests.exceptions.HTTPError as e:
+        http_error = True
+        print(f'Ошибка получения данных от HH, перезапустите скрипт:\n{e}')
     
+    load_dotenv()
+    token_sj = os.getenv('SJ_TOKEN')
+    secret_code = os.getenv('SJ_SECRET_CODE')
+    try:
+        vacancies_sj = get_sj_vacancies(secret_code, token_sj)
+    except requests.exceptions.HTTPError as e:
+        http_error = True
+        print(f'Ошибка получения данных от SJ, перезапустите скрипт:\n{e}')
+    stats_sj = {}
+  
+    if not http_error:
+        for language in PROGRAM_LANGUAGES:
+            stats_sj[language] = get_sj_salaries(language, vacancies_sj)
+        table_headers = [['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']]
+        table_stats_hh = table_headers.copy()
+        table_stats_hh += [[language, *language_stats.values()] for language, language_stats in stats_hh.items()]
+        table_instance_hh = AsciiTable(table_stats_hh, 'HeadHunter Moscow')
+        table_stats_sj = table_headers.copy()
+        table_stats_sj += [[language, *language_stats.values()] for language, language_stats in stats_sj.items()]
+        table_instance_sj = AsciiTable(table_stats_sj, 'SuperJob Moscow')
+
+        print('\n', table_instance_hh.table, '\n\n', table_instance_sj.table)
+    else:
+        print('Невозможно построить таблицы, недостаточно данных!')
 
 if __name__ == '__main__':
     main()

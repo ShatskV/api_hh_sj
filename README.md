@@ -6,11 +6,11 @@
 ### Как установить
 
 - Зарегистрировать свое приложение в API SuperJob
-- Создать в корне проекта файл **.env**, указать в нем данные SuperJob:
-  - Логин: **LOGIN**
-  - Пароль: **PASSWORD**
-  - ID клиента: **CLIENT_ID**
-  - Секретный код: **SECRET_CODE**
+- Создать в корне проекта файл **.env**, указать в нем данные с SuperJob:
+  - Логин: **SJ_LOGIN**
+  - Пароль: **SJ_PASSWORD**
+  - ID клиента: **SJ_CLIENT_ID**
+  - Секретный код: **SJ_SECRET_CODE**
 - Python3 должен быть установлен
 - Затем используйте `pip` (или `pip3`, еслить есть конфликт с Python2) для установки зависимостей: 
     ```
@@ -24,10 +24,26 @@
 - Программа содержит 2 скриптf:
   - ```utils.py``` - получить токены от API SuperJob
   - ```get_salaries_sj_hh.py``` - получить таблицы со средними зарплатами
-  - Следует сначала запустить utils.py, чтобы получить токены
-  - Добавить токены в файл **.env**:
-    - Access token: **TOKEN**
-    - Refresh token: **REFRESH_TOKEN**
+  - Следует сначала запустить utils.py, чтобы получить токены:
+    ```
+        python3 utils.py
+    ```
+  - Добавить полученные токены в файл **.env**:
+    - Access token: **SJ_TOKEN**
+    - Refresh token: **SJ_REFRESH_TOKEN**
+  - Пример файла **.env**:
+    ```
+    SJ_TOKEN='v3.r.136dfedf348'
+    SJ_REFRESH_TOKEN='v3.r.343434'
+    SJ_SECRET_CODE='v3.r.136088883'
+    SJ_LOGIN='example@gmail.com'
+    SJ_PASSWORD='qwerty'
+    SJ_CLIENT_ID=1346
+    ```
+  - Запустить скрипт:
+    ```
+        python3 get_salaries_sj_hh.py
+    ```
 
 ### Цель проекта
 

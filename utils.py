@@ -2,14 +2,11 @@ import os
 from dotenv import load_dotenv
 import requests
 
-load_dotenv()
-
-
-def get_tokens():
-    login = os.getenv('LOGIN')
-    password = os.getenv('PASSWORD')
-    client_id = os.getenv('CLIENT_ID')
-    secret_code = os.getenv('secret_code')
+def get_tokens_sj():
+    login = os.getenv('SJ_LOGIN')
+    password = os.getenv('SJ_PASSWORD')
+    client_id = os.getenv('SJ_CLIENT_ID')
+    secret_code = os.getenv('SJ_SECRET_CODE')
     params = {'login': login,
               'password': password,
               'client_id': client_id,
@@ -19,4 +16,5 @@ def get_tokens():
     print(response.json())
 
 if __name__ == '__main__':
-    get_tokens()
+    load_dotenv()
+    get_tokens_sj()
