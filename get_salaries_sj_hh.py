@@ -1,9 +1,7 @@
-import json
 import os
 from datetime import datetime, timedelta
 
 import requests
-# from requests.exceptions import HTTPError
 from dotenv import load_dotenv
 from terminaltables import AsciiTable
 
@@ -64,13 +62,13 @@ def get_sj_vacancies(code, token):
         params['page'] = page
         response = requests.get('https://api.superjob.ru/2.0/vacancies/', params=params, headers=headers)
         response.raise_for_status()
-        response_json = response.json()
-        vacancies += response_json.get('objects', [])
-        more_results = response_json.get('more')
+        hh_page = response.json()
+        vacancies += hh_page.get('objects', [])
+        more_results = hh_page.get('more')
     return vacancies
 
 
-def get_sj_salaries(language, vacancies):
+def get_sj_language_stats(language, vacancies):
     sorted_vacancies = [vacancy for vacancy in vacancies if language.lower() in vacancy.get('candidat', '')]
     vacancies_processed = 0
     all_vacancies = len(sorted_vacancies)
@@ -88,7 +86,7 @@ def get_sj_salaries(language, vacancies):
     }
 
 
-def get_hh_salaries(language):
+def get_hh_language_stats(language):
     moscow_id = 1
     vacancies_per_page = 100
     days = 31
@@ -131,27 +129,18 @@ def get_hh_salaries(language):
 
 def main():
     stats_hh = {}
-    http_error = False
-    try:
-        for language in PROGRAM_LANGUAGES:
-            stats_hh[language] = get_hh_salaries(language)
-    except requests.exceptions.HTTPError as e:
-        http_error = True
-        print(f'Ошибка получения данных от HH, перезапустите скрипт:\n{e}')
-    
+    stats_sj = {}
     load_dotenv()
     token_sj = os.getenv('SJ_TOKEN')
-    secret_code = os.getenv('SJ_SECRET_CODE')
+    secret_code_sj = os.getenv('SJ_SECRET_CODE')
     try:
-        vacancies_sj = get_sj_vacancies(secret_code, token_sj)
+        stats_hh = {language: get_hh_language_stats(language) for language in PROGRAM_LANGUAGES}
+        vacancies_sj = get_sj_vacancies(secret_code_sj, token_sj)
     except requests.exceptions.HTTPError as e:
-        http_error = True
-        print(f'Ошибка получения данных от SJ, перезапустите скрипт:\n{e}')
-    stats_sj = {}
-  
-    if not http_error:
-        for language in PROGRAM_LANGUAGES:
-            stats_sj[language] = get_sj_salaries(language, vacancies_sj)
+        print(f'Ошибка получения данных, перезапустите скрипт:\n{e}')
+        print('Невозможно построить таблицы, недостаточно данных!')
+    else:
+        stats_sj = {language: get_sj_language_stats(language, vacancies_sj) for language in PROGRAM_LANGUAGES}
         table_headers = [['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']]
         table_stats_hh = table_headers.copy()
         table_stats_hh += [[language, *language_stats.values()] for language, language_stats in stats_hh.items()]
@@ -159,10 +148,8 @@ def main():
         table_stats_sj = table_headers.copy()
         table_stats_sj += [[language, *language_stats.values()] for language, language_stats in stats_sj.items()]
         table_instance_sj = AsciiTable(table_stats_sj, 'SuperJob Moscow')
-
         print('\n', table_instance_hh.table, '\n\n', table_instance_sj.table)
-    else:
-        print('Невозможно построить таблицы, недостаточно данных!')
+       
 
 if __name__ == '__main__':
     main()
